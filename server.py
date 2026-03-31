@@ -86,9 +86,3 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
 ```
-
-Aur `requirements.txt` yeh karo:
-```
-flask==3.0.3
-flask-cors==4.0.1
-gunicorn==22.0.0
