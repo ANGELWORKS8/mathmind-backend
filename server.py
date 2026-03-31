@@ -23,7 +23,7 @@ CLASSES = {
     "Adv": "Advanced math",
 }
 
-def ask(messages, model="nvidia/nemotron-super-49b-v1:free"):
+def ask(messages, model="meta-llama/llama-3.3-70b-instruct:free"):
     payload = json.dumps({"model": model, "messages": messages}).encode()
     req = urllib.request.Request(
         "https://openrouter.ai/api/v1/chat/completions",
