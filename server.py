@@ -22,7 +22,7 @@ CLASSES = {
 
 def ask(content):
     payload = json.dumps({
-        "model": "meta-llama/llama-3.3-70b-instruct:free",
+       "model": "google/gemma-3-27b-it:free",
         "messages": [{"role": "user", "content": content}]
     }).encode("utf-8")
     req = urllib.request.Request(
