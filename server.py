@@ -40,7 +40,7 @@ def solve():
             "Authorization": "Bearer " + API_KEY,
             "Content-Type": "application/json"
         }, json={
-            "model": "meta-llama/llama-3.1-8b-instruct:free",
+            "model": "meta-llama/deepseek/deepseek-r1:free,
             "messages": [{"role": "user", "content": prompt}]
         }, timeout=60)
         result = response.json()
@@ -67,7 +67,7 @@ def solve_image():
             "Authorization": "Bearer " + API_KEY,
             "Content-Type": "application/json"
         }, json={
-            "model": "meta-llama/llama-3.2-11b-vision-instruct:free",
+            "model": "meta-llama/deepseek/deepseek-r1:free,
             "messages": [{"role": "user", "content": [
                 {"type": "image_url", "image_url": {"url": "data:" + mime_type + ";base64," + image_b64}},
                 {"type": "text", "text": prompt}
