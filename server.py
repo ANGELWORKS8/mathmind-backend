@@ -23,7 +23,7 @@ CLASSES = {
     "Adv": "Advanced math",
 }
 
-def ask(messages, model="mistralai/mistral-7b-instruct:free"):
+def ask(messages, model="stepfun-ai/step-3-5-flash:free"):
     payload = json.dumps({"model": model, "messages": messages}).encode()
     req = urllib.request.Request(
         "https://openrouter.ai/api/v1/chat/completions",
