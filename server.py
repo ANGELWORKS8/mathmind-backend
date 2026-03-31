@@ -1,9 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import urllib.request
-import urllib.error
-import json
-import os
+import json, os, urllib.request
 
 app = Flask(__name__)
 CORS(app)
@@ -23,15 +20,24 @@ CLASSES = {
     "Adv": "Advanced math",
 }
 
-def ask(messages, model="meta-llama/llama-3.3-70b-instruct:free"):
-    payload = json.dumps({"model": model, "messages": messages}).encode()
+def ask(content):
+    payload = json.dumps({
+        "model": "meta-llama/llama-3.3-70b-instruct:free",
+        "messages": [{"role": "user", "content": content}]
+    }).encode("utf-8")
     req = urllib.request.Request(
         "https://openrouter.ai/api/v1/chat/completions",
         data=payload,
-        headers={"Authorization": "Bearer " + KEY, "Content-Type": "application/json"}
+        headers={
+            "Authorization": "Bearer " + KEY,
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://mathmind.app",
+            "X-Title": "MathMind"
+        },
+        method="POST"
     )
     with urllib.request.urlopen(req, timeout=60) as r:
-        result = json.loads(r.read().decode())
+        result = json.loads(r.read().decode("utf-8"))
     return result["choices"][0]["message"]["content"]
 
 @app.route("/")
@@ -48,7 +54,7 @@ def solve():
             return jsonify({"error": "No problem"}), 400
         level = "Grade " + grade + ": " + CLASSES.get(grade, "") if grade else "High school"
         prompt = "You are MathMind, a math tutor. " + level + "\nSolve step by step, label each step, highlight FINAL ANSWER.\n\nProblem: " + problem
-        answer = ask([{"role": "user", "content": prompt}])
+        answer = ask(prompt)
         return jsonify({"answer": answer})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -67,11 +73,11 @@ def solve_image():
         prompt = "You are MathMind. " + level + "\nSolve the math in this image step by step. Highlight FINAL ANSWER."
         if note:
             prompt = prompt + "\nNote: " + note
-        messages = [{"role": "user", "content": [
+        content = [
             {"type": "image_url", "image_url": {"url": "data:" + mime_type + ";base64," + image_b64}},
             {"type": "text", "text": prompt}
-        ]}]
-        answer = ask(messages, model="meta-llama/llama-3.2-11b-vision-instruct:free")
+        ]
+        answer = ask(content)
         return jsonify({"answer": answer})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
