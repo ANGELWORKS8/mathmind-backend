@@ -42,7 +42,7 @@ def solve():
             return jsonify({"error": "No problem provided"}), 400
 
         genai.configure(api_key=API_KEY)
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel("gemini-2.0-flash")
 
         level_str = f"The student is in Grade {grade}. Topics: {CLASSES.get(grade, '')}." if grade else "General high school level."
 
