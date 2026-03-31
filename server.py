@@ -1,26 +1,19 @@
 """
-╔══════════════════════════════════════════════════════╗
-║         MathMind Backend — Flask API Server          ║
-║  Deploy on Railway.app (free)                        ║
-╚══════════════════════════════════════════════════════╝
-
-Install: pip install flask flask-cors anthropic
-Run locally: python server.py
+MathMind Backend — Flask API Server (Gemini)
+Free API — no credits needed!
 """
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import anthropic
+import google.generativeai as genai
 import base64
 import os
 
 app = Flask(__name__)
-CORS(app)  # Allow requests from Flutter app
+CORS(app)
 
-# ── API Key (set in Railway environment variables — NEVER hardcode!) ────────
-API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
-# ── Class info ──────────────────────────────────────────────────────────────
 CLASSES = {
     "5th":  "Basic arithmetic, fractions, decimals, simple geometry",
     "6th":  "Ratios, percentages, basic algebra, area & perimeter",
@@ -34,26 +27,23 @@ CLASSES = {
     "Adv":  "Advanced — full rigor, no simplification",
 }
 
-# ── Health check ────────────────────────────────────────────────────────────
 @app.route("/", methods=["GET"])
 def home():
     return jsonify({"status": "MathMind API is running ✓"})
 
-# ── Solve text equation ─────────────────────────────────────────────────────
 @app.route("/solve", methods=["POST"])
 def solve():
     try:
         data = request.get_json()
-        problem  = data.get("problem", "").strip()
-        grade    = data.get("grade", "")
+        problem = data.get("problem", "").strip()
+        grade   = data.get("grade", "")
 
         if not problem:
             return jsonify({"error": "No problem provided"}), 400
 
-        if not API_KEY:
-            return jsonify({"error": "API key not configured on server"}), 500
+        genai.configure(api_key=API_KEY)
+        model = genai.GenerativeModel("gemini-1.5-flash")
 
-        # Build prompt
         level_str = f"The student is in Grade {grade}. Topics: {CLASSES.get(grade, '')}." if grade else "General high school level."
 
         prompt = f"""You are MathMind, a world-class math tutor.
@@ -69,25 +59,13 @@ Solve the following problem with complete step-by-step working:
 
 Problem: {problem}"""
 
-        client = anthropic.Anthropic(api_key=API_KEY)
-        response = client.messages.create(
-            model="claude-sonnet-4-5",
-            max_tokens=1500,
-            messages=[{"role": "user", "content": prompt}]
-        )
+        response = model.generate_content(prompt)
+        return jsonify({"answer": response.text})
 
-        answer = response.content[0].text
-        return jsonify({"answer": answer})
-
-    except anthropic.AuthenticationError:
-        return jsonify({"error": "Invalid API key on server"}), 401
-    except anthropic.RateLimitError:
-        return jsonify({"error": "Rate limit reached. Try again shortly."}), 429
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
-# ── Solve image equation ────────────────────────────────────────────────────
 @app.route("/solve-image", methods=["POST"])
 def solve_image():
     try:
@@ -100,51 +78,27 @@ def solve_image():
         if not image_b64:
             return jsonify({"error": "No image provided"}), 400
 
-        if not API_KEY:
-            return jsonify({"error": "API key not configured on server"}), 500
+        genai.configure(api_key=API_KEY)
+        model = genai.GenerativeModel("gemini-1.5-flash")
 
         level_str = f"Student is in Grade {grade}. Topics: {CLASSES.get(grade, '')}." if grade else "General high school level."
 
-        prompt_text = (
-            f"You are MathMind, an expert math tutor.\n{level_str}\n\n"
-            "Examine this image carefully. Extract the complete math problem, "
-            "then solve it step-by-step with clearly labeled steps. "
-            "Identify the problem type first. Highlight the FINAL ANSWER clearly.\n"
-            + (f"Student note: {note}" if note else "")
-        )
+        prompt = f"""You are MathMind, an expert math tutor.
+{level_str}
 
-        client = anthropic.Anthropic(api_key=API_KEY)
-        response = client.messages.create(
-            model="claude-sonnet-4-5",
-            max_tokens=1500,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": mime_type,
-                            "data": image_b64,
-                        }
-                    },
-                    {"type": "text", "text": prompt_text}
-                ]
-            }]
-        )
+Examine this image carefully. Extract the complete math problem, then solve it step-by-step with clearly labeled steps. Identify the problem type first. Highlight the FINAL ANSWER clearly.
+{f'Student note: {note}' if note else ''}"""
 
-        answer = response.content[0].text
-        return jsonify({"answer": answer})
+        image_data = base64.b64decode(image_b64)
+        image_part = {"mime_type": mime_type, "data": image_data}
 
-    except anthropic.AuthenticationError:
-        return jsonify({"error": "Invalid API key on server"}), 401
-    except anthropic.RateLimitError:
-        return jsonify({"error": "Rate limit reached. Try again shortly."}), 429
+        response = model.generate_content([prompt, image_part])
+        return jsonify({"answer": response.text})
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
-# ── Run ─────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
