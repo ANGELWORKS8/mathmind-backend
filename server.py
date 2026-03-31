@@ -40,7 +40,7 @@ def solve():
             "Authorization": "Bearer " + API_KEY,
             "Content-Type": "application/json"
         }, json={
-            "model": "meta-llama/llama-3.3-8b-instruct:free",
+            "model": "meta-llama/llama-3.1-8b-instruct:free",
             "messages": [{"role": "user", "content": prompt}]
         }, timeout=60)
         result = response.json()
