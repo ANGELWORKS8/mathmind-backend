@@ -24,7 +24,6 @@ MODELS = [
     "google/gemma-3-27b-it:free",
     "meta-llama/llama-3.3-70b-instruct:free",
     "google/gemma-3-12b-it:free",
-    "qwen/qwen3-next-80b-a3b-instruct:free",
     "nvidia/nemotron-nano-9b-v2:free",
     "google/gemma-3-4b-it:free",
     "meta-llama/llama-3.2-3b-instruct:free",
@@ -35,13 +34,10 @@ def ask(content):
         messages = [{"role": "user", "content": content}]
     else:
         messages = [{"role": "user", "content": content}]
-
+    last_error = "No models available"
     for model in MODELS:
         try:
-            payload = json.dumps({
-                "model": model,
-                "messages": messages
-            }).encode("utf-8")
+            payload = json.dumps({"model": model, "messages": messages}).encode("utf-8")
             req = urllib.request.Request(
                 "https://openrouter.ai/api/v1/chat/completions",
                 data=payload,
@@ -57,13 +53,14 @@ def ask(content):
                 result = json.loads(r.read().decode("utf-8"))
             return result["choices"][0]["message"]["content"]
         except urllib.error.HTTPError as e:
-            if e.code in [429, 503, 502]:
+            last_error = str(e)
+            if e.code in [429, 503, 502, 400]:
                 continue
             raise e
         except Exception as e:
+            last_error = str(e)
             continue
-
-    return "All models are busy. Please try again in a moment."
+    return "All models busy. Please try again in a moment."
 
 @app.route("/")
 def home():
@@ -77,4 +74,35 @@ def solve():
         grade = body.get("grade", "")
         if not problem:
             return jsonify({"error": "No problem"}), 400
-        level
+        level = "Grade " + grade + ": " + CLASSES.get(grade, "") if grade else "High school"
+        prompt = "You are MathMind, a math tutor. " + level + "\nSolve step by step, label each step, highlight FINAL ANSWER.\n\nProblem: " + problem
+        answer = ask(prompt)
+        return jsonify({"answer": answer})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/solve-image", methods=["POST"])
+def solve_image():
+    try:
+        body = request.get_json()
+        image_b64 = body.get("image_b64", "")
+        mime_type = body.get("mime_type", "image/jpeg")
+        note = body.get("note", "")
+        grade = body.get("grade", "")
+        if not image_b64:
+            return jsonify({"error": "No image"}), 400
+        level = "Grade " + grade + ": " + CLASSES.get(grade, "") if grade else "High school"
+        prompt = "You are MathMind. " + level + "\nSolve the math in this image step by step. Highlight FINAL ANSWER."
+        if note:
+            prompt = prompt + "\nNote: " + note
+        content = [
+            {"type": "image_url", "image_url": {"url": "data:" + mime_type + ";base64," + image_b64}},
+            {"type": "text", "text": prompt}
+        ]
+        answer = ask(content)
+        return jsonify({"answer": answer})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
